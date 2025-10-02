@@ -1,6 +1,9 @@
 # Ignorar a pasta sources
 sources/
 
+# Ignorar ambiente virtual Python
+venv/
+
 # Arquivos temporários do sistema
 Thumbs.db
 .DS_Store
