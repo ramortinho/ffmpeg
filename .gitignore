@@ -1,0 +1,13 @@
+# Ignorar a pasta sources
+sources/
+
+# Arquivos temporários do sistema
+Thumbs.db
+.DS_Store
+
+# Arquivos de log
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
