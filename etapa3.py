@@ -174,7 +174,7 @@ def add_bgm_to_teaser(teaser_path, bgm_path, output_path):
         print("    ❌ Erro ao obter duração do teaser")
         return False
     
-    fade_start = max(0, teaser_duration - 2.0)  # Fade out começa 2s antes do fim
+    fade_start = max(0, teaser_duration - 3.0)  # Fade out começa 3s antes do fim
     
     # ESTRATÉGIA: Primeiro mesclar áudio, depois combinar com vídeo
     temp_audio = output_path.replace('.mp4', '_temp_audio.aac')

@@ -22,7 +22,7 @@ OUTPUT_DIR = "output"
 
 # Limitações
 MAX_VIDEOS = 59
-TRIM_SECONDS = 2.0
+TRIM_SECONDS = 1.0
 
 # Extensões de vídeo suportadas
 VIDEO_EXTENSIONS = ['*.mp4', '*.MP4', '*.avi', '*.mov', '*.mkv']

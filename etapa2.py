@@ -31,10 +31,10 @@ OPENAI_GPT_MODEL = "gpt-4o-mini"  # Modelo para análise de conteúdo
 LANGUAGE = "pt"  # pt, en, es, etc.
 
 # Configurações do teaser
-TEASER_DURATION = 60  # Duração total do teaser em segundos
-TARGET_TEASER_DURATION = 60.0  # Duração desejada do teaser (segundos)
+TEASER_DURATION = 120  # Duração total do teaser em segundos
+TARGET_TEASER_DURATION = 120.0  # Duração desejada do teaser (segundos)
 MIN_CLIP_DURATION = 5.0        # Duração mínima de cada clipe (segundos)
-MAX_CLIP_DURATION = 6.0        # Duração máxima de cada clipe (segundos)
+MAX_CLIP_DURATION = 8.0        # Duração máxima de cada clipe (segundos)
 MIN_GAP_BETWEEN_CLIPS = 5.0    # Gap mínimo entre clipes (segundos)
 CLIP_OFFSET = 1.0     # Offset de 1 segundo entre clipes para evitar travamentos
 
@@ -271,23 +271,26 @@ def generate_teaser_segments(segments):
     print(f"      📝 Enviando TODOS os {len(simplified_segments)} segmentos para GPT")
     
     prompt = f"""
-Analise estes segmentos de vídeo e selecione os mais importantes para criar um teaser narrativo de aproximadamente {TARGET_TEASER_DURATION:.0f} segundos.
+        #AÇÃO:
+        Analise estes segmentos de vídeo abaixo e selecione os trechos mais importantes para criar um teaser narrativo de aproximadamente {TARGET_TEASER_DURATION:.0f} segundos.
 
-TODOS OS SEGMENTOS DISPONÍVEIS (ID: start-end - texto):
-{segments_context}
+        # TODOS OS SEGMENTOS DISPONÍVEIS (ID: start-end - texto):
+        {segments_context}
 
-INSTRUÇÕES:
-1. Selecione segmentos que formem uma narrativa interessante
-2. DISTRIBUA por TODO o vídeo (início, meio e fim)
-3. Priorize momentos de emoção, surpresa, admiração, ação
-4. Cada segmento deve ter entre {MIN_CLIP_DURATION:.0f} e {MAX_CLIP_DURATION:.0f} segundos
-5. Mantenha ordem cronológica (do início para o fim do vídeo)
+        #INSTRUÇÕES:
+        1. Selecione segmentos que formem uma narrativa interessante
+        2. DISTRIBUA segmentos por TODO o vídeo (início, meio e fim)
+        3. Priorize momentos de emoção, surpresa, admiração, ação, comédia, etc.
+        4. Cada segmento deve ter entre {MIN_CLIP_DURATION:.0f} e {MAX_CLIP_DURATION:.0f} segundos
+        5. Mantenha a ordem cronológica (do início para o fim do vídeo)
 
-IMPORTANTE: Selecione segmentos de diferentes partes do vídeo, não apenas do início!
+        #IMPORTANTE: 
+        Selecione segmentos de diferentes partes do vídeo, não apenas do início!
 
-Responda APENAS com os IDs dos segmentos separados por vírgula, em ordem sequencial.
-Exemplo: 0,15,32,48,65,82,99,116,133,150
-"""
+        #RESPOSTA:
+        Responda APENAS com os IDs dos segmentos separados por vírgula, em ordem sequencial.
+        Exemplo: 0,15,32,48,65,82,99,116,133,150
+        """
     
     data = {
         "model": OPENAI_GPT_MODEL,
