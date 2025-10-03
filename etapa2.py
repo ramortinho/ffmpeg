@@ -304,17 +304,6 @@ def generate_teaser_segments(segments):
     # Salvar JSON enviado para debug
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     debug_file = os.path.join(OUTPUT_DIR, f"{timestamp}_gpt_request_debug.json")
-    try:
-        with open(debug_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                "timestamp": timestamp,
-                "total_segments": len(simplified_segments),
-                "prompt": prompt,
-                "request_data": data
-            }, f, ensure_ascii=False, indent=2)
-        print(f"      💾 Debug JSON salvo: {os.path.basename(debug_file)}")
-    except Exception as e:
-        print(f"      ⚠️ Erro ao salvar debug JSON: {e}")
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=60)
@@ -322,6 +311,20 @@ def generate_teaser_segments(segments):
         
         result = response.json()
         selected_indices = result['choices'][0]['message']['content'].strip()
+        
+        # Salvar debug com a resposta do GPT
+        try:
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "timestamp": timestamp,
+                    "total_segments": len(simplified_segments),
+                    "prompt": prompt,
+                    "request_data": data,
+                    "response_content": selected_indices  # ← ADICIONADO!
+                }, f, ensure_ascii=False, indent=2)
+            print(f"      💾 Debug JSON salvo: {os.path.basename(debug_file)}")
+        except Exception as e:
+            print(f"      ⚠️ Erro ao salvar debug JSON: {e}")
         
         # Processar resposta do GPT - mapear IDs de volta para segments
         selected_ids = [int(id_str.strip()) for id_str in selected_indices.split(',') if id_str.strip().isdigit()]
