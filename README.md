@@ -35,6 +35,8 @@ git clone https://github.com/ramortinho/ffmpeg.git
 cd ffmpeg
 ```
 
+**Nota**: O repositório usa a branch `main` como padrão.
+
 ### 2. Criar ambiente virtual
 ```bash
 python -m venv venv
