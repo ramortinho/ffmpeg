@@ -1,16 +1,34 @@
-# Ignorar a pasta sources
-sources/
-
-# Ignorar ambiente virtual Python
-venv/
-
-# Arquivos temporários do sistema
-Thumbs.db
-.DS_Store
-
-# Arquivos de log
-*.log
+# Arquivos de configuração com dados sensíveis
+config.py
 
 # Arquivos temporários
-*.tmp
-*.temp
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Arquivos de saída
+output/
+teaser/
+assets/
+*.mp4
+*.MP4
+*.mp3
+*.wav
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
