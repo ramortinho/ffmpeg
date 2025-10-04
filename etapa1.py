@@ -86,8 +86,8 @@ def get_video_duration(video_path):
         return None
     return float(result.stdout.strip())
 
-def trim_video(input_video, output_video):
-    """Aplica apenas trim em um vídeo (sem normalização)"""
+def trim_video(input_video, output_video, apply_fade_in=False):
+    """Aplica trim em um vídeo e opcionalmente fade in (apenas para o primeiro vídeo)"""
     duration = get_video_duration(input_video)
     if duration is None:
         print(f"    ❌ Erro: Não foi possível obter duração de {input_video}")
@@ -95,15 +95,29 @@ def trim_video(input_video, output_video):
     
     end_time = duration - TRIM_SECONDS
     
-    # Trim apenas (sem normalização)
-    cmd_trim = [
-        'ffmpeg', '-y',
-        '-i', input_video,
-        '-ss', str(TRIM_SECONDS),
-        '-to', str(end_time),
-        '-c', 'copy',
-        output_video
-    ]
+    if apply_fade_in:
+        # Primeiro vídeo: trim + fade in (mais eficiente aplicar aqui!)
+        cmd_trim = [
+            'ffmpeg', '-y',
+            '-i', input_video,
+            '-ss', str(TRIM_SECONDS),
+            '-to', str(end_time),
+            '-c:v', 'copy',  # Vídeo sem re-encodificar
+            '-af', f'afade=t=in:st=0:d={FADE_IN_DURATION}',  # Fade in no áudio
+            '-c:a', AUDIO_CODEC,
+            '-b:a', AUDIO_BITRATE,
+            output_video
+        ]
+    else:
+        # Demais vídeos: apenas trim (copy codec)
+        cmd_trim = [
+            'ffmpeg', '-y',
+            '-i', input_video,
+            '-ss', str(TRIM_SECONDS),
+            '-to', str(end_time),
+            '-c', 'copy',
+            output_video
+        ]
     
     result = subprocess.run(cmd_trim, capture_output=True, text=True)
     if result.returncode != 0:
@@ -153,16 +167,26 @@ def concat_videos(video_list, output_video):
         return result.returncode == 0
 
 def normalize_audio(input_video, output_video):
-    """Aplica normalização de áudio em um vídeo"""
-    cmd = [
-        'ffmpeg', '-y',
-        '-i', input_video,
-        '-c:v', 'copy',  # Copia vídeo sem re-encodificar
-        '-af', AUDIO_FILTER,
-        '-c:a', AUDIO_CODEC,
-        '-b:a', AUDIO_BITRATE,
-        output_video
-    ]
+    """Aplica normalização de áudio em um vídeo (loudnorm, sem fade in pois já foi aplicado)"""
+    if USE_LOUDNORM:
+        # Aplicar apenas loudnorm (fade in já foi aplicado no primeiro vídeo!)
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', input_video,
+            '-c:v', 'copy',  # Copia vídeo sem re-encodificar
+            '-af', 'loudnorm',  # Apenas normalização, sem fade in
+            '-c:a', AUDIO_CODEC,
+            '-b:a', AUDIO_BITRATE,
+            output_video
+        ]
+    else:
+        # Sem loudnorm: apenas copiar (fade in já foi aplicado no primeiro vídeo!)
+        cmd = [
+            'ffmpeg', '-y',
+            '-i', input_video,
+            '-c', 'copy',  # Copiar tudo sem processar
+            output_video
+        ]
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.returncode == 0
@@ -201,13 +225,14 @@ def main():
     print(f"📹 Processando {len(video_files)} vídeos")
     print(f"⏱️  Resolução: ORIGINAL (4K) - SEM REDIMENSIONAMENTO")
     print(f"🔧 Trim: {TRIM_SECONDS}s | Codec: {VIDEO_CODEC} | Áudio: {AUDIO_CODEC}")
+    print(f"🎚️  Fade In: {FADE_IN_DURATION}s (aplicado no PRIMEIRO vídeo)")
     
     if USE_LOUDNORM:
-        print(f"🎚️  Fade In: {FADE_IN_DURATION}s + Normalização de áudio (loudnorm)")
+        print(f"🔊 Normalização: loudnorm aplicado no vídeo final")
     else:
-        print(f"🎚️  Fade In: {FADE_IN_DURATION}s (SEM normalização)")
+        print(f"⚡ SEM normalização (apenas copy - máxima velocidade!)")
     
-    print("🚀 ULTRA OTIMIZADO: Copy codec + resolução original + normalização separada!")
+    print("🚀 ULTRA OTIMIZADO: Copy codec + resolução original + fade in otimizado!")
     print("=" * 60)
 
     # Passo 1: Apenas trim dos vídeos (sem normalização)
@@ -217,12 +242,19 @@ def main():
     
     for i, video in enumerate(video_files, 1):
         elapsed = time.time() - start_time
-        print(f"  {i}/{len(video_files)}: {os.path.basename(video)} - {format_time(elapsed)}")
+        
+        # Indicar se é o primeiro vídeo (aplicar fade in)
+        is_first = (i == 1)
+        video_info = f"  {i}/{len(video_files)}: {os.path.basename(video)}"
+        if is_first:
+            video_info += " [FADE IN]"
+        print(f"{video_info} - {format_time(elapsed)}")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         processed_file = os.path.join(OUTPUT_DIR, f"trimmed_{i:02d}_{timestamp}_{os.path.basename(video)}")
         
-        if not trim_video(video, processed_file):
+        # Aplicar fade in apenas no primeiro vídeo!
+        if not trim_video(video, processed_file, apply_fade_in=is_first):
             print(f"❌ Erro ao processar {os.path.basename(video)}")
             return
         
@@ -246,26 +278,26 @@ def main():
     concat_time = time.time() - concat_start
     print(f"✅ CONCATENAÇÃO concluída em {format_time(concat_time)}")
 
-    # Passo 3: Normalizar áudio do vídeo concatenado
+    # Passo 3: Normalizar áudio do vídeo concatenado (fade in já foi aplicado!)
     if USE_LOUDNORM:
         print(f"\n🔄 Passo 3/3: NORMALIZANDO áudio do vídeo final...")
     else:
-        print(f"\n🔄 Passo 3/3: APLICANDO FADE IN no áudio do vídeo final...")
+        print(f"\n🔄 Passo 3/3: FINALIZANDO vídeo concatenado...")
     
     final_output = os.path.join(OUTPUT_DIR, f"{timestamp}_concatenated_videos.mp4")
     
     normalize_start = time.time()
     
     if USE_LOUDNORM:
-        print(f"  🔊 Aplicando fade in + loudnorm no áudio...")
+        print(f"  🔊 Aplicando loudnorm no áudio (fade in já aplicado)...")
     else:
-        print(f"  🎚️  Aplicando apenas fade in no áudio...")
+        print(f"  📋 Copiando vídeo final (fade in já aplicado)...")
     
     if not normalize_audio(temp_concat, final_output):
         if USE_LOUDNORM:
             print("❌ Erro na normalização")
         else:
-            print("❌ Erro ao aplicar fade in")
+            print("❌ Erro ao finalizar vídeo")
         return
     
     normalize_time = time.time() - normalize_start
@@ -273,7 +305,7 @@ def main():
     if USE_LOUDNORM:
         print(f"✅ NORMALIZAÇÃO concluída em {format_time(normalize_time)}")
     else:
-        print(f"✅ FADE IN aplicado em {format_time(normalize_time)}")
+        print(f"✅ VÍDEO FINAL copiado em {format_time(normalize_time)}")
 
     # Limpeza do arquivo temporário
     if os.path.exists(temp_concat):
@@ -286,13 +318,13 @@ def main():
     print(f"📁 Arquivo final: {final_output}")
     print(f"⏱️  Tempo total: {format_time(total_time)}")
     print(f"📊 Breakdown dos tempos:")
-    print(f"   • TRIM: {format_time(trim_time)}")
+    print(f"   • TRIM (fade in no 1º vídeo): {format_time(trim_time)}")
     print(f"   • CONCATENAÇÃO: {format_time(concat_time)}")
     
     if USE_LOUDNORM:
-        print(f"   • NORMALIZAÇÃO: {format_time(normalize_time)}")
+        print(f"   • NORMALIZAÇÃO (loudnorm): {format_time(normalize_time)}")
     else:
-        print(f"   • FADE IN: {format_time(normalize_time)}")
+        print(f"   • FINALIZAÇÃO (copy): {format_time(normalize_time)}")
     
     if os.path.exists(final_output):
         file_size = os.path.getsize(final_output) / (1024 * 1024)
@@ -306,13 +338,13 @@ def main():
     print("✅ Limpeza concluída!")
     print("\n🚀 ULTRA OTIMIZAÇÃO APLICADA:")
     print("   • TRIM rápido (copy codec)")
+    print(f"   • FADE IN ({FADE_IN_DURATION}s) aplicado no PRIMEIRO vídeo (muito mais rápido!)")
     print("   • CONCATENAÇÃO com resolução 4K original")
-    print(f"   • FADE IN de áudio ({FADE_IN_DURATION}s) para entrada suave")
     
     if USE_LOUDNORM:
         print("   • NORMALIZAÇÃO loudnorm apenas no vídeo final")
     else:
-        print("   • SEM normalização (apenas fade in)")
+        print("   • SEM normalização (apenas copy - instantâneo!)")
     
     print("   • ZERO re-encodificação desnecessária")
     print("   • Etapa 2 será 100x mais rápida!")
