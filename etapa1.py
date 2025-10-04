@@ -42,7 +42,13 @@ AUDIO_BITRATE = '128k'
 
 # Configurações de fade e normalização
 FADE_IN_DURATION = 1.0  # Duração do fade in em segundos (início do vídeo)
-AUDIO_FILTER = f'afade=t=in:st=0:d={FADE_IN_DURATION},loudnorm'  # Fade in + normalização
+USE_LOUDNORM = False  # True = aplicar normalização loudnorm | False = apenas fade in
+
+# Construir filtro de áudio baseado nas configurações
+if USE_LOUDNORM:
+    AUDIO_FILTER = f'afade=t=in:st=0:d={FADE_IN_DURATION},loudnorm'  # Fade in + normalização
+else:
+    AUDIO_FILTER = f'afade=t=in:st=0:d={FADE_IN_DURATION}'  # Apenas fade in
 
 # =============================================================================
 
@@ -195,7 +201,12 @@ def main():
     print(f"📹 Processando {len(video_files)} vídeos")
     print(f"⏱️  Resolução: ORIGINAL (4K) - SEM REDIMENSIONAMENTO")
     print(f"🔧 Trim: {TRIM_SECONDS}s | Codec: {VIDEO_CODEC} | Áudio: {AUDIO_CODEC}")
-    print(f"🎚️  Fade In: {FADE_IN_DURATION}s + Normalização de áudio")
+    
+    if USE_LOUDNORM:
+        print(f"🎚️  Fade In: {FADE_IN_DURATION}s + Normalização de áudio (loudnorm)")
+    else:
+        print(f"🎚️  Fade In: {FADE_IN_DURATION}s (SEM normalização)")
+    
     print("🚀 ULTRA OTIMIZADO: Copy codec + resolução original + normalização separada!")
     print("=" * 60)
 
@@ -236,18 +247,33 @@ def main():
     print(f"✅ CONCATENAÇÃO concluída em {format_time(concat_time)}")
 
     # Passo 3: Normalizar áudio do vídeo concatenado
-    print(f"\n🔄 Passo 3/3: NORMALIZANDO áudio do vídeo final...")
+    if USE_LOUDNORM:
+        print(f"\n🔄 Passo 3/3: NORMALIZANDO áudio do vídeo final...")
+    else:
+        print(f"\n🔄 Passo 3/3: APLICANDO FADE IN no áudio do vídeo final...")
+    
     final_output = os.path.join(OUTPUT_DIR, f"{timestamp}_concatenated_videos.mp4")
     
     normalize_start = time.time()
-    print(f"  🔊 Aplicando loudnorm no áudio...")
+    
+    if USE_LOUDNORM:
+        print(f"  🔊 Aplicando fade in + loudnorm no áudio...")
+    else:
+        print(f"  🎚️  Aplicando apenas fade in no áudio...")
     
     if not normalize_audio(temp_concat, final_output):
-        print("❌ Erro na normalização")
+        if USE_LOUDNORM:
+            print("❌ Erro na normalização")
+        else:
+            print("❌ Erro ao aplicar fade in")
         return
     
     normalize_time = time.time() - normalize_start
-    print(f"✅ NORMALIZAÇÃO concluída em {format_time(normalize_time)}")
+    
+    if USE_LOUDNORM:
+        print(f"✅ NORMALIZAÇÃO concluída em {format_time(normalize_time)}")
+    else:
+        print(f"✅ FADE IN aplicado em {format_time(normalize_time)}")
 
     # Limpeza do arquivo temporário
     if os.path.exists(temp_concat):
@@ -262,7 +288,11 @@ def main():
     print(f"📊 Breakdown dos tempos:")
     print(f"   • TRIM: {format_time(trim_time)}")
     print(f"   • CONCATENAÇÃO: {format_time(concat_time)}")
-    print(f"   • NORMALIZAÇÃO: {format_time(normalize_time)}")
+    
+    if USE_LOUDNORM:
+        print(f"   • NORMALIZAÇÃO: {format_time(normalize_time)}")
+    else:
+        print(f"   • FADE IN: {format_time(normalize_time)}")
     
     if os.path.exists(final_output):
         file_size = os.path.getsize(final_output) / (1024 * 1024)
@@ -278,7 +308,12 @@ def main():
     print("   • TRIM rápido (copy codec)")
     print("   • CONCATENAÇÃO com resolução 4K original")
     print(f"   • FADE IN de áudio ({FADE_IN_DURATION}s) para entrada suave")
-    print("   • NORMALIZAÇÃO apenas no vídeo final")
+    
+    if USE_LOUDNORM:
+        print("   • NORMALIZAÇÃO loudnorm apenas no vídeo final")
+    else:
+        print("   • SEM normalização (apenas fade in)")
+    
     print("   • ZERO re-encodificação desnecessária")
     print("   • Etapa 2 será 100x mais rápida!")
 
