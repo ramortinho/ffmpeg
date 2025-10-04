@@ -40,8 +40,9 @@ VIDEO_QUALITY = None  # Não aplicável com copy
 AUDIO_CODEC = 'aac'
 AUDIO_BITRATE = '128k'
 
-# Configurações de normalização
-AUDIO_FILTER = 'loudnorm'
+# Configurações de fade e normalização
+FADE_IN_DURATION = 1.0  # Duração do fade in em segundos (início do vídeo)
+AUDIO_FILTER = f'afade=t=in:st=0:d={FADE_IN_DURATION},loudnorm'  # Fade in + normalização
 
 # =============================================================================
 
@@ -194,6 +195,7 @@ def main():
     print(f"📹 Processando {len(video_files)} vídeos")
     print(f"⏱️  Resolução: ORIGINAL (4K) - SEM REDIMENSIONAMENTO")
     print(f"🔧 Trim: {TRIM_SECONDS}s | Codec: {VIDEO_CODEC} | Áudio: {AUDIO_CODEC}")
+    print(f"🎚️  Fade In: {FADE_IN_DURATION}s + Normalização de áudio")
     print("🚀 ULTRA OTIMIZADO: Copy codec + resolução original + normalização separada!")
     print("=" * 60)
 
@@ -275,6 +277,7 @@ def main():
     print("\n🚀 ULTRA OTIMIZAÇÃO APLICADA:")
     print("   • TRIM rápido (copy codec)")
     print("   • CONCATENAÇÃO com resolução 4K original")
+    print(f"   • FADE IN de áudio ({FADE_IN_DURATION}s) para entrada suave")
     print("   • NORMALIZAÇÃO apenas no vídeo final")
     print("   • ZERO re-encodificação desnecessária")
     print("   • Etapa 2 será 100x mais rápida!")

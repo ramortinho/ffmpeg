@@ -22,6 +22,7 @@ OUTPUT_DIR = "output"
 
 # Configurações de áudio
 BGM_VOLUME_DB = -5  # Volume do BGM em dB (negativo = mais baixo que o áudio original)
+FADE_OUT_DURATION = 2.0  # Duração do fade out em segundos
 AUDIO_CODEC = 'aac'
 AUDIO_BITRATE = '128k'
 
@@ -164,8 +165,9 @@ def find_suitable_bgm(teaser_duration):
     return best_bgm
 
 def add_bgm_to_teaser(teaser_path, bgm_path, output_path):
-    """Adiciona BGM ao teaser com volume -5dB e fade out de 2 segundos"""
-    print("🎵 Passo 2/2: MESCLANDO teaser com BGM + fade out...")
+    """Adiciona BGM ao teaser com volume configurável e fade out"""
+    print(f"🎵 Passo 2/2: MESCLANDO teaser com BGM + fade out ({FADE_OUT_DURATION}s)...")
+    print(f"    ⏱️  Teaser: {get_audio_duration(teaser_path):.2f}s | BGM: {get_audio_duration(bgm_path):.2f}s")
     merge_start = time.time()
     
     # Obter duração do teaser para calcular o fade out
@@ -174,24 +176,41 @@ def add_bgm_to_teaser(teaser_path, bgm_path, output_path):
         print("    ❌ Erro ao obter duração do teaser")
         return False
     
-    fade_start = max(0, teaser_duration - 3.0)  # Fade out começa 3s antes do fim
+    fade_start = max(0, teaser_duration - FADE_OUT_DURATION)  # Fade out começa N segundos antes do fim
     
-    # ESTRATÉGIA: Primeiro mesclar áudio, depois combinar com vídeo
+    # ESTRATÉGIA: Primeiro ajustar BGM para duração exata, depois mesclar
     temp_audio = output_path.replace('.mp4', '_temp_audio.aac')
+    temp_bgm = output_path.replace('.mp4', '_temp_bgm.wav')
     
-    # Passo 1: Mesclar áudios
+    # Passo 0: Ajustar BGM para ter EXATAMENTE a mesma duração do teaser
+    print(f"    🔧 Passo 0/3: Ajustando BGM para {teaser_duration:.2f}s...")
+    cmd_bgm_adjust = [
+        'ffmpeg', '-y',
+        '-stream_loop', '-1',  # Loop infinito
+        '-i', bgm_path,
+        '-t', str(teaser_duration),  # Cortar exatamente na duração do teaser
+        '-c:a', 'pcm_s16le',  # WAV para evitar problemas de sync
+        temp_bgm
+    ]
+    
+    result0 = subprocess.run(cmd_bgm_adjust, capture_output=True, text=True)
+    if result0.returncode != 0:
+        print(f"    ❌ Erro ao ajustar BGM: {result0.stderr[:200]}")
+        return False
+    
+    # Passo 1: Mesclar áudios (agora ambos têm a mesma duração)
     cmd_audio = [
         'ffmpeg', '-y',
         '-i', teaser_path,
-        '-i', bgm_path,
-        '-filter_complex', f'[1:a]volume={BGM_VOLUME_DB}dB[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[audio_mixed];[audio_mixed]afade=t=out:st={fade_start:.1f}:d=2.0[audio]',
+        '-i', temp_bgm,
+        '-filter_complex', f'[1:a]volume={BGM_VOLUME_DB}dB[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=0[audio_mixed];[audio_mixed]afade=t=out:st={fade_start:.1f}:d={FADE_OUT_DURATION}[audio]',
         '-map', '[audio]',
         '-c:a', 'aac',
         '-b:a', '128k',
         temp_audio
     ]
     
-    print(f"    🔧 Passo 1/2: Mesclando áudios...")
+    print(f"    🔧 Passo 1/3: Mesclando áudios...")
     result1 = subprocess.run(cmd_audio, capture_output=True, text=True)
     
     if result1.returncode != 0:
@@ -207,16 +226,17 @@ def add_bgm_to_teaser(teaser_path, bgm_path, output_path):
         '-c:a', 'copy',     # Copiar áudio mesclado
         '-map', '0:v',      # Vídeo do primeiro input
         '-map', '1:a',      # Áudio do segundo input
-        '-shortest',
         output_path
     ]
     
-    print(f"    🔧 Passo 2/2: Combinando vídeo + áudio mesclado...")
+    print(f"    🔧 Passo 2/3: Combinando vídeo + áudio mesclado...")
     result2 = subprocess.run(cmd_video, capture_output=True, text=True)
     
-    # Limpar arquivo temporário
+    # Limpar arquivos temporários
     if os.path.exists(temp_audio):
         os.remove(temp_audio)
+    if os.path.exists(temp_bgm):
+        os.remove(temp_bgm)
     
     if result2.returncode != 0:
         print(f"    ❌ Erro na combinação vídeo+áudio: {result2.stderr}")
@@ -283,7 +303,7 @@ def main():
     print("✅ TEASER COM BGM gerado com sucesso!")
     print(f"📁 Arquivo: {output_path}")
     print(f"🎵 BGM usado: {bgm_info['name']} ({bgm_info['duration']:.1f}s)")
-    print(f"🔊 Volume BGM: {BGM_VOLUME_DB}dB")
+    print(f"🔊 Volume BGM: {BGM_VOLUME_DB}dB | Fade out: {FADE_OUT_DURATION}s")
     print(f"⏱️  Tempo total: {format_time(total_time)}")
     
     if os.path.exists(output_path):
@@ -293,9 +313,10 @@ def main():
     print("\n🚀 OTIMIZAÇÕES APLICADAS:")
     print("   • SELEÇÃO automática de BGM adequado")
     print("   • MESCLAGEM inteligente com volume balanceado")
+    print(f"   • FADE OUT configurável ({FADE_OUT_DURATION}s)")
     print("   • QUALIDADE 4K mantida")
     print("   • CODEC otimizado para mesclagem de áudio")
-    print("   • DURAÇÃO controlada (shortest)")
+    print("   • SINCRONIZAÇÃO perfeita (BGM ajustado ao teaser)")
 
 if __name__ == "__main__":
     main()
